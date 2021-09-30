@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>MineSweeper</title>
+</head>
+
+<body oncontextmenu='self.event.returnValue=false'>
+  <div class="level">难度等级：
+    <button class="easy">简单</button>
+    <button class="hard">困难</button>
+  </div>
+  <div class="info">
+    剩余雷数：<span class="mineCount">0</span>
+  </div>
+  <table class="gameArea"></table>
+  <script>
+    // 初始化
+    let row = 8
+    let col = 8
+    let maxCount = 10; //最大地雷数量
+    let map = createMineSweeperMap(row, col)
+    createMine(row, col, maxCount, map)
+
+    let mineCount = document.querySelector('.mineCount'); //剩余地雷数
+    let easy = document.querySelector('.easy')
+    let hard = document.querySelector('.hard')
+    mineCount.innerText = maxCount; //初始化剩余雷数
+
+    // 切换 难度等级
+    easy.onclick = function () {
+      row = 8
+      col = 8
+      maxCount = 10
+      map = createMineSweeperMap(row, col)
+      createMine(row, col, maxCount, map)
+      mineCount.innerText = maxCount; //初始化剩余雷数
+    }
+    hard.onclick = function () {
+      row = 16
+      col = 16
+      maxCount = 25
+      map = createMineSweeperMap(row, col)
+      createMine(row, col, maxCount, map)
+      mineCount.innerText = maxCount; //初始化剩余雷数
+    }
+
+    // 1.创建地图
+    function createMineSweeperMap(row, col) {
+      let grid = ``
+      for (let i = 0; i < row; i++) {
+        grid = grid + `<tr>`
+        for (let j = 0; j < col; j++) {
+          grid = grid +
+            `<td><span class="blocks" onmousedown="blockClick( ${i} , ${j},event)"></span></td>`
+        }
+      }
+      document.querySelector('.gameArea').innerHTML = grid
+      let blocks = document.querySelectorAll('.blocks')
+      let blocksArr = Array.from(blocks)
+      for (let item of blocksArr) {
+        item.style.width = '30px'
+        item.style.height = '30px'
+        item.style.background = 'pink'
+        item.style.display = 'block'
+        item.count = 0
+      }
+      let map = []
+      for (let i = 0, j = 0; i < blocksArr.length; i += col, j++) {
+        map[j] = blocksArr.slice(i, col + i)
+      }
+      return map
+    }
+
+    // 2.生成地雷
+    function createMine(row, col, maxCount, map) {
+      let count = 0; //当前地雷数
+      while (count < maxCount) {
+        let r = Math.floor(Math.random() * row)
+        let c = Math.floor(Math.random() * col)
+        // 坐标不能等于 地雷区 
+        if (!map[r][c].isMine) {
+          map[r][c].isMine = true
+          count++
+          // 更新map中 九宫格 非雷格子的记雷数
+          for (let i = r - 1; i < r + 2; i++) {
+            for (let j = c - 1; j < c + 2; j++) {
+              if (i > -1 && j > -1 && i < row && j < col) {
+                map[i][j].count++
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 3.方格click事件 (左键 右键 *数计算 输赢判断)
+    function blockClick(i, j, e) {
+      // 跳过已打开的方格
+      if (map[i][j].isOpen) return
+
+      // 鼠标左键 打开方格 (判断 被标记 不能被左击)
+      if (map[i][j].innerText !== "*") {
+        if (e.button === 0) leftBtnOpen(i, j)
+      }
+
+      // 鼠标右键 标记 *
+      if (e.button === 2) {
+        map[i][j].innerText !== "*" ? map[i][j].innerText = "*" : map[i][j].innerText = ""
+      }
+
+      markAndWin(row, col, map)
+    }
+
+    //  左键点击后 打开格子
+    function leftBtnOpen(i, j) {
+      let block = map[i][j];
+      openStatus(block)
+
+      if (block.isMine) {
+        // 踩到地雷
+        block.innerText = "雷"
+        // 打开所有有雷的地方
+        for (let a = 0; a < row; a++) {
+          for (let b = 0; b < col; b++) {
+            let block = map[a][b];
+            if (block.isMine) {
+              openStatus(block)
+              block.innerText = "雷"
+            }
+          }
+        }
+        alert("踩雷啦~")
+      } else if (block.count === 0) {
+        // 踩到 记雷数为0
+        for (let a = i - 1; a < i + 2; a++) {
+          for (let b = j - 1; b < j + 2; b++) {
+            if (a > -1 && b > -1 && a < row && b < col && !map[a][b].isOpen && !map[a][b].isMine) {
+              leftBtnOpen(a, b)
+            }
+          }
+        }
+      } else {
+        // 踩到 记雷数不为0
+        block.innerText = block.count
+      }
+    }
+
+    //  同时计算 * 数  并 判断输赢(还没赢 不是雷 还没打开)
+    function markAndWin(row, col, map) {
+      let isWin = true
+      let num = 0
+      for (let a = 0; a < row; a++) {
+        for (let b = 0; b < col; b++) {
+          if (map[a][b].innerText === "*") num++
+          if (!map[a][b].isMine && !map[a][b].isOpen) isWin = false
+        }
+      }
+      // 计算剩余地雷数
+      mineCount.innerText = maxCount - num;
+      if (mineCount.innerText <= 0) mineCount.innerText = 0
+      // 判断胜利
+      if (isWin) alert("厉害呀，通关啦~")
+    }
+
+    // 打开的isOpen状态 和 颜色
+    function openStatus(block) {
+      block.isOpen = true
+      block.style.background = "rgb(228, 228, 228)"
+    }
+  </script>
+</body>
+
+</html>
